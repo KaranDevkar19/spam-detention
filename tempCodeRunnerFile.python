@@ -1,0 +1,65 @@
+import pandas as pd
+import nltk
+import re
+import string
+
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, confusion_matrix
+
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+
+# Load dataset
+data = pd.read_csv("spam.csv", encoding='latin-1')
+data = data[['v1', 'v2']]
+data.columns = ['label', 'message']
+
+# Preprocessing function
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r'\d+', '', text)
+    text = text.translate(str.maketrans('', '', string.punctuation))
+    
+    words = text.split()
+    words = [word for word in words if word not in stopwords.words('english')]
+    
+    return " ".join(words)
+
+data['cleaned'] = data['message'].apply(clean_text)
+
+# Convert text to numbers
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(data['cleaned'])
+y = data['label']
+
+# Train test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+# Model 1: Naive Bayes
+nb_model = MultinomialNB()
+nb_model.fit(X_train, y_train)
+nb_pred = nb_model.predict(X_test)
+
+# Model 2: Logistic Regression
+lr_model = LogisticRegression()
+lr_model.fit(X_train, y_train)
+lr_pred = lr_model.predict(X_test)
+
+# Accuracy
+print("Naive Bayes Accuracy:", accuracy_score(y_test, nb_pred))
+print("Logistic Regression Accuracy:", accuracy_score(y_test, lr_pred))
+
+# Confusion Matrix
+print("\nConfusion Matrix (Naive Bayes):")
+print(confusion_matrix(y_test, nb_pred))
+
+# Custom Prediction
+msg = ["Congratulations! You have won a lottery"]
+msg_clean = [clean_text(m) for m in msg]
+msg_vec = vectorizer.transform(msg_clean)
+
+prediction = nb_model.predict(msg_vec)
+print("\nPrediction:", prediction[0])
